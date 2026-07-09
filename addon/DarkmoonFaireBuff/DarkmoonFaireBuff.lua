@@ -904,12 +904,10 @@ local function CreateOptionsPanel()
     -- the description/checkbox column above it on the same left margin).
     local gridCols = 3
     local buttonW = 95
-    local buttonH = 95
+    local buttonH = 88
     local padX = 10
-    local padY = 10
+    local padY = 9
     local gridWidth = gridCols * buttonW + (gridCols - 1) * padX
-    local gridStartX = -gridWidth / 2
-    local gridStartY = -255
 
     -- Dark background
     local bg = panel:CreateTexture(nil, "BACKGROUND")
@@ -1029,6 +1027,9 @@ local function CreateOptionsPanel()
     local COLOR_FRAME_REC    = { r = 0.90, g = 0.72, b = 0.35 }
     local COLOR_FRAME_ALT    = { r = 0.75, g = 0.76, b = 0.82 }
     local COLOR_FRAME_NORM   = { r = 0.42, g = 0.38, b = 0.48 }
+    -- Crown toppers: gold marks the recommendation, silver the alternatives.
+    local CROWN_RECO_TEXTURE = "Interface\\AddOns\\DarkmoonFaireBuff\\Media\\Crown_Reco"
+    local CROWN_ALT_TEXTURE  = "Interface\\AddOns\\DarkmoonFaireBuff\\Media\\Crown_Alt"
 
     local function UpdateButtonStates()
         for _, btn in ipairs(buffButtons) do
@@ -1065,15 +1066,40 @@ local function CreateOptionsPanel()
         end
     end
 
+    -- Timer/cooldown text lives at the very bottom; create it up front so the
+    -- grid can be vertically centred in the gap between the checkboxes and it.
+    local cdText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    cdText:SetPoint("BOTTOM", panel, "BOTTOM", 0, 20)
+    cdText:SetWidth(360)
+    cdText:SetTextColor(0.7, 0.7, 0.8)
+    panel.cooldownText = cdText
+
+    -- Grid metrics and crown sizing.
+    local gridRows = math.ceil(#gridEntries / gridCols)
+    local gridHeight = gridRows * buttonH + (gridRows - 1) * padY
+    local CROWN_W, CROWN_H, CROWN_OVERLAP = 100, 50, 6
+    local crownPoke = CROWN_H - CROWN_OVERLAP  -- how far a crown rises above its card
+
+    -- Centre the whole block (crown toppers + card grid) in the vertical gap
+    -- between the fortune checkbox and the timer. Anchoring both edges to real
+    -- frames keeps it correct at any resolution / UI scale. The +X offset on the
+    -- top anchor re-centres from the left-aligned checkbox onto the panel axis.
+    local gridHolder = CreateFrame("Frame", nil, panel)
+    gridHolder:SetWidth(gridWidth)
+    gridHolder:SetPoint("TOP", fortuneFrame, "BOTTOM", gridWidth / 2 - 13, 0)
+    gridHolder:SetPoint("BOTTOM", cdText, "TOP", 0, 6)
+
     for idx, entry in ipairs(gridEntries) do
         local col = ((idx - 1) % gridCols)
         local row = math.floor((idx - 1) / gridCols)
-        local x = gridStartX + col * (buttonW + padX)
-        local y = gridStartY - row * (buttonH + padY)
+        local colX = (col - (gridCols - 1) / 2) * (buttonW + padX)
+        -- Row 0 sits above centre; shift the whole grid down by half the crown
+        -- height so the crowns-plus-cards block is centred as a unit.
+        local rowY = (gridHeight / 2 - buttonH / 2) - row * (buttonH + padY) - crownPoke / 2
 
         local btn = CreateFrame("Button", "DFBBuff_" .. entry.id, panel)
         btn:SetSize(buttonW, buttonH)
-        btn:SetPoint("TOP", panel, "TOP", x + buttonW / 2, y)
+        btn:SetPoint("CENTER", gridHolder, "CENTER", colX, rowY)
         btn.buffId = entry.id
         btn.recommendationRank = entry.rank
         btn.isRecommended = entry.rank == 1
@@ -1108,6 +1134,16 @@ local function CreateOptionsPanel()
         frameRing:SetTexture(ICON_FRAME_TEXTURE)
         btn.frameRing = frameRing
 
+        -- Crown topper: gold for the recommendation, silver for the two
+        -- alternatives. Sized in UI units, so it scales with any resolution.
+        if entry.rank == 1 or (entry.rank and entry.rank > 10 and entry.rank < 20) then
+            local crown = btn:CreateTexture(nil, "OVERLAY", nil, 3)
+            crown:SetSize(CROWN_W, CROWN_H)
+            crown:SetPoint("BOTTOM", btn, "TOP", 0, -CROWN_OVERLAP)
+            crown:SetTexture(entry.rank == 1 and CROWN_RECO_TEXTURE or CROWN_ALT_TEXTURE)
+            btn.crown = crown
+        end
+
         -- Icon
         local icon = btn:CreateTexture(nil, "OVERLAY")
         icon:SetSize(36, 36)
@@ -1125,15 +1161,21 @@ local function CreateOptionsPanel()
         end
         btn.icon = icon
 
-        if entry.rank == 1 or (entry.rank and entry.rank > 10 and entry.rank < 20) then
+        if btn.crown then
+            -- Label sits on the crown's banner plate. Drawn above the crown
+            -- texture (higher OVERLAY sublevel) with an outline for legibility.
             local badge = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            badge:SetPoint("TOPRIGHT", btn, "TOPRIGHT", -7, -7)
-            badge:SetWidth(36)
+            badge:SetDrawLayer("OVERLAY", 5)
+            local fontPath = badge:GetFont()
+            badge:SetFont(fontPath, 11, "OUTLINE")
+            badge:SetPoint("CENTER", btn.crown, "CENTER", 0, -7)
+            badge:SetWidth(CROWN_W - 24)
+            badge:SetJustifyH("CENTER")
             badge:SetText(entry.rank == 1 and L["RECOMMENDED_BADGE"] or L["ALTERNATIVE_BADGE"])
             if entry.rank == 1 then
-                badge:SetTextColor(0.98, 0.78, 0.20)
+                badge:SetTextColor(1.0, 0.84, 0.28)   -- gold
             else
-                badge:SetTextColor(0.72, 0.62, 0.40)
+                badge:SetTextColor(0.90, 0.93, 0.98)  -- silver
             end
             btn.badge = badge
         end
@@ -1190,13 +1232,6 @@ local function CreateOptionsPanel()
 
         table.insert(buffButtons, btn)
     end
-
-    -- Cooldown status text at the bottom
-    local cdText = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    cdText:SetPoint("BOTTOM", panel, "BOTTOM", 0, 20)
-    cdText:SetWidth(360)
-    cdText:SetTextColor(0.7, 0.7, 0.8)
-    panel.cooldownText = cdText
 
     -- Update cooldown text periodically
     panel:SetScript("OnUpdate", function(self, elapsed)
