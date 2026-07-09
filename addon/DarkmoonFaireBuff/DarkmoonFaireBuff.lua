@@ -1156,8 +1156,10 @@ local function CreateOptionsPanel()
                 icon:SetTexture("Interface\\Icons\\INV_Misc_QuestionMark")
             end
         else
-            -- "None" button icon
-            icon:SetTexture("Interface\\Icons\\INV_Misc_NoSymbol")
+            -- "None" button: a red X (native ready-check texture, scales
+            -- cleanly). Sized up slightly to offset its transparent padding.
+            icon:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
+            icon:SetSize(42, 42)
         end
         btn.icon = icon
 
