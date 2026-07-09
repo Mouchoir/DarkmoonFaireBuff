@@ -1,6 +1,10 @@
-# Darkmoon Faire Buff
+<p align="center">
+  <img src="docs/logo.png" alt="Darkmoon Faire Buff" width="200">
+</p>
 
-World of Warcraft Classic Era addon that automates Sayge's Darkmoon Faire buff dialogue.
+<h1 align="center">Darkmoon Faire Buff</h1>
+
+<p align="center">World of Warcraft Classic Era addon that automates Sayge's Darkmoon Faire buff dialogue.</p>
 
 ## Features
 

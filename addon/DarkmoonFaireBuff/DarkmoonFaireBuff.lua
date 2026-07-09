@@ -904,7 +904,7 @@ local function CreateOptionsPanel()
     -- the description/checkbox column above it on the same left margin).
     local gridCols = 3
     local buttonW = 95
-    local buttonH = 88
+    local buttonH = 90
     local padX = 10
     local padY = 9
     local gridWidth = gridCols * buttonW + (gridCols - 1) * padX
@@ -1036,7 +1036,6 @@ local function CreateOptionsPanel()
             local isSelected = db and db.selectedBuff == btn.buffId
             local isRecommended = btn.recommendationRank == 1
             local isAlternative = btn.recommendationRank and btn.recommendationRank > 10 and btn.recommendationRank < 20
-            if btn.badge then btn.badge:Show() end
             if isSelected then
                 btn.border:SetColorTexture(COLOR_BORDER_SEL.r, COLOR_BORDER_SEL.g, COLOR_BORDER_SEL.b, 1)
                 btn.bg:SetColorTexture(COLOR_NORMAL.r, COLOR_NORMAL.g, COLOR_NORMAL.b, 0.92)
@@ -1077,7 +1076,7 @@ local function CreateOptionsPanel()
     -- Grid metrics and crown sizing.
     local gridRows = math.ceil(#gridEntries / gridCols)
     local gridHeight = gridRows * buttonH + (gridRows - 1) * padY
-    local CROWN_W, CROWN_H, CROWN_OVERLAP = 100, 50, 6
+    local CROWN_W, CROWN_H, CROWN_OVERLAP = 102, 51, 5
     local crownPoke = CROWN_H - CROWN_OVERLAP  -- how far a crown rises above its card
 
     -- Centre the whole block (crown toppers + card grid) in the vertical gap
@@ -1163,24 +1162,8 @@ local function CreateOptionsPanel()
         end
         btn.icon = icon
 
-        if btn.crown then
-            -- Label sits on the crown's banner plate. Drawn above the crown
-            -- texture (higher OVERLAY sublevel) with an outline for legibility.
-            local badge = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-            badge:SetDrawLayer("OVERLAY", 5)
-            local fontPath = badge:GetFont()
-            badge:SetFont(fontPath, 11, "OUTLINE")
-            badge:SetPoint("CENTER", btn.crown, "CENTER", 0, -7)
-            badge:SetWidth(CROWN_W - 24)
-            badge:SetJustifyH("CENTER")
-            badge:SetText(entry.rank == 1 and L["RECOMMENDED_BADGE"] or L["ALTERNATIVE_BADGE"])
-            if entry.rank == 1 then
-                badge:SetTextColor(1.0, 0.84, 0.28)   -- gold
-            else
-                badge:SetTextColor(0.90, 0.93, 0.98)  -- silver
-            end
-            btn.badge = badge
-        end
+        -- (The "Reco" / "Alt" label is baked into the crown texture's banner.)
+
         -- Label
         local lbl = btn:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
         lbl:SetPoint("BOTTOM", btn, "BOTTOM", 0, 6)
