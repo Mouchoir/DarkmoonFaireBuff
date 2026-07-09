@@ -1,0 +1,10 @@
+## Interface: 11508
+## Title: Darkmoon Faire Buff (DFB)
+## Notes: Automates Sayge's Darkmoon Faire buff dialogue.
+## Title-frFR: Darkmoon Faire Buff (DFB)
+## Notes-frFR: Automatise les dialogues de buff de Sayge a la foire de Sombrelune.
+## Author: Mouchoir
+## Version: 0.1.0
+## SavedVariablesPerCharacter: DFBCharSettings
+
+DarkmoonFaireBuff.lua

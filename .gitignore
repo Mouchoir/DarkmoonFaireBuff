@@ -1,0 +1,4 @@
+dist/
+*.zip
+*.log
+scripts/dev.local.ps1
