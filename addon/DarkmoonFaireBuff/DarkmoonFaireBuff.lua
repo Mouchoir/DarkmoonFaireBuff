@@ -1076,7 +1076,7 @@ local function CreateOptionsPanel()
     -- Grid metrics and crown sizing.
     local gridRows = math.ceil(#gridEntries / gridCols)
     local gridHeight = gridRows * buttonH + (gridRows - 1) * padY
-    local CROWN_W, CROWN_H, CROWN_OVERLAP = 102, 51, 5
+    local CROWN_W, CROWN_H, CROWN_OVERLAP = 102, 51, 8
     local crownPoke = CROWN_H - CROWN_OVERLAP  -- how far a crown rises above its card
 
     -- Centre the whole block (crown toppers + card grid) in the vertical gap
@@ -1146,7 +1146,9 @@ local function CreateOptionsPanel()
         -- Icon
         local icon = btn:CreateTexture(nil, "OVERLAY")
         icon:SetSize(36, 36)
-        icon:SetPoint("TOP", btn, "TOP", 0, -8)
+        -- Icon/X centred low in the card (~44% down); as far down as the
+        -- two-line labels below it allow without overlap.
+        icon:SetPoint("CENTER", btn, "TOP", 0, -40)
         if entry.spellId then
             local _, spellIcon = GetSpellDisplayInfo(entry.spellId)
             if spellIcon then
