@@ -1,5 +1,5 @@
 param(
-    [string]$WowAddOnsPath
+    [string[]]$WowAddOnsPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -9,38 +9,40 @@ $projectRoot = Resolve-Path (Join-Path $PSScriptRoot '..')
 $source = Join-Path $projectRoot "addon\$addonName"
 
 # Personal machine paths never live in source control. Provide yours via:
-#  - the -WowAddOnsPath parameter,
-#  - the DFB_WOW_ADDONS_PATH environment variable, or
-#  - a local scripts\dev.local.ps1 file (gitignored) that sets $WowAddOnsPath.
-if (-not $WowAddOnsPath) {
+#  - the -WowAddOnsPath parameter (one or more paths),
+#  - the DFB_WOW_ADDONS_PATH environment variable (';'-separated), or
+#  - a local scripts\dev.local.ps1 file (gitignored) that sets $WowAddOnsPaths
+#    (array) or $WowAddOnsPath (single string).
+# Every configured flavour folder (_classic_era_, _classic_, _retail_, ...) is
+# deployed to, so one run updates Classic Era and MoP Classic together.
+$targets = @()
+if ($WowAddOnsPath) { $targets = @($WowAddOnsPath) }
+
+if (-not $targets) {
     $localOverride = Join-Path $PSScriptRoot 'dev.local.ps1'
     if (Test-Path -LiteralPath $localOverride) {
         . $localOverride
+        if ($WowAddOnsPaths) { $targets = @($WowAddOnsPaths) }
+        elseif ($WowAddOnsPath) { $targets = @($WowAddOnsPath) }
     }
 }
 
-if (-not $WowAddOnsPath) {
-    $WowAddOnsPath = $env:DFB_WOW_ADDONS_PATH
+if (-not $targets -and $env:DFB_WOW_ADDONS_PATH) {
+    $targets = $env:DFB_WOW_ADDONS_PATH -split ';' | Where-Object { $_ }
 }
 
-if (-not $WowAddOnsPath) {
-    $candidates = @(
+if (-not $targets) {
+    $targets = @(
         "${env:ProgramFiles(x86)}\World of Warcraft\_classic_era_\Interface\AddOns",
-        "$env:ProgramFiles\World of Warcraft\_classic_era_\Interface\AddOns"
-    )
-    foreach ($candidate in $candidates) {
-        if ($candidate -and (Test-Path -LiteralPath $candidate)) {
-            $WowAddOnsPath = $candidate
-            break
-        }
-    }
+        "$env:ProgramFiles\World of Warcraft\_classic_era_\Interface\AddOns",
+        "${env:ProgramFiles(x86)}\World of Warcraft\_classic_\Interface\AddOns",
+        "$env:ProgramFiles\World of Warcraft\_classic_\Interface\AddOns"
+    ) | Where-Object { Test-Path -LiteralPath $_ }
 }
 
-if (-not $WowAddOnsPath) {
-    throw "WoW AddOns folder not found. Pass -WowAddOnsPath '<drive>:\...\_classic_era_\Interface\AddOns', set DFB_WOW_ADDONS_PATH, or create scripts\dev.local.ps1 setting `$WowAddOnsPath."
+if (-not $targets) {
+    throw "No WoW AddOns folder found. Pass -WowAddOnsPath, set DFB_WOW_ADDONS_PATH, or create scripts\dev.local.ps1 setting `$WowAddOnsPaths."
 }
-
-$destination = Join-Path $WowAddOnsPath $addonName
 
 if (-not (Test-Path -LiteralPath $source)) {
     throw "Addon source folder not found: $source"
@@ -50,26 +52,33 @@ if (-not (Test-Path -LiteralPath (Join-Path $source "$addonName.toc"))) {
     throw "TOC file not found in addon source: $source"
 }
 
-if (-not (Test-Path -LiteralPath $WowAddOnsPath)) {
-    New-Item -ItemType Directory -Force -Path $WowAddOnsPath | Out-Null
+# Only ever deploy into a real WoW AddOns folder, whatever the flavour.
+$flavourPattern = 'World of Warcraft\\_[^\\]+_\\Interface\\AddOns$'
+$deployed = 0
+
+foreach ($path in $targets) {
+    if (-not $path) { continue }
+    if (-not (Test-Path -LiteralPath $path)) {
+        New-Item -ItemType Directory -Force -Path $path | Out-Null
+    }
+
+    $resolved = (Resolve-Path -LiteralPath $path).Path.TrimEnd('\')
+    if ($resolved -notmatch $flavourPattern) {
+        throw "Refusing to deploy outside a WoW AddOns folder: $resolved"
+    }
+
+    $destination = Join-Path $resolved $addonName
+    New-Item -ItemType Directory -Force -Path $destination | Out-Null
+
+    robocopy $source $destination /MIR /NFL /NDL /NJH /NJS /NP /XF *.zip | Out-Host
+    $code = $LASTEXITCODE
+    if ($code -gt 7) {
+        throw "robocopy failed with exit code $code (target: $destination)"
+    }
+
+    Write-Host "DEV deploy complete -> $destination"
+    $deployed++
 }
 
-$resolvedAddOns = (Resolve-Path -LiteralPath $WowAddOnsPath).Path.TrimEnd('\')
-$expectedSuffix = 'World of Warcraft\_classic_era_\Interface\AddOns'
-if (-not $resolvedAddOns.EndsWith($expectedSuffix, [StringComparison]::OrdinalIgnoreCase)) {
-    throw "Refusing to deploy outside the Classic Era AddOns folder: $resolvedAddOns"
-}
-
-New-Item -ItemType Directory -Force -Path $destination | Out-Null
-
-robocopy $source $destination /MIR /NFL /NDL /NJH /NJS /NP /XF *.zip | Out-Host
-$code = $LASTEXITCODE
-if ($code -gt 7) {
-    throw "robocopy failed with exit code $code"
-}
-
-Write-Host "DEV deploy complete:"
-Write-Host "  $source"
-Write-Host "  -> $destination"
-Write-Host "Reload WoW with /reload to test."
+Write-Host "Deployed to $deployed folder(s). Reload WoW with /reload to test."
 exit 0

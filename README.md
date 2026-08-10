@@ -31,9 +31,10 @@ From this project directory:
 .\scripts\dev.ps1
 ```
 
-The script auto-detects a standard Battle.net install. For a non-standard install location, pass
-`-WowAddOnsPath`, set the `DFB_WOW_ADDONS_PATH` environment variable, or create a local
-`scripts\dev.local.ps1` (gitignored) that sets `$WowAddOnsPath`.
+The script auto-detects standard Battle.net installs (Classic Era and MoP Classic) and deploys to
+each. For non-standard locations, pass one or more paths via `-WowAddOnsPath`, set the
+`DFB_WOW_ADDONS_PATH` environment variable (`;`-separated), or create a local `scripts\dev.local.ps1`
+(gitignored) that sets `$WowAddOnsPaths` (an array, one entry per flavour).
 
 After deployment, run `/reload` in game.
 

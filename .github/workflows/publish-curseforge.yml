@@ -88,37 +88,48 @@ jobs:
             exit 1
           fi
 
-          # Derive the game version from the TOC interface (e.g. 11509 -> 1.15.9)
-          # and resolve CurseForge's numeric id for it, so the file is pinned to
-          # exactly that version (Classic Era). Letting CurseForge infer the
-          # version from the TOC produced spurious Classic TBC duplicates.
-          iface="$(grep -iE '^## Interface:' "${ADDON_SOURCE}/${ADDON_NAME}.toc" | grep -oE '[0-9]+' | head -1)"
-          if [[ -z "$iface" ]]; then
-            echo "Could not read '## Interface:' from ${ADDON_SOURCE}/${ADDON_NAME}.toc" >&2
-            exit 1
-          fi
-          version_string="$((10#$iface / 10000)).$((10#$iface / 100 % 100)).$((10#$iface % 100))"
-          echo "TOC interface $iface -> game version $version_string"
-
           versions_json="$(curl -sf \
             --header "X-Api-Token: ${CURSEFORGE_API_TOKEN}" \
             "${CURSEFORGE_BASE_URL}/api/game/versions")"
 
-          game_version_id="$(jq --arg v "$version_string" \
-            'map(select(.name == $v)) | .[0].id // empty' <<<"$versions_json")"
+          # Resolve a CurseForge game-version id for every flavour TOC in the
+          # addon: the base .toc (Classic Era) plus each _<Flavour>.toc (e.g.
+          # _Mists.toc -> MoP). The version comes from the TOC Interface number
+          # (11509 -> 1.15.9, 50504 -> 5.5.4). Pinning to explicit ids avoids the
+          # spurious Classic-TBC duplicates CurseForge infers from the TOC alone.
+          ids=()
+          shopt -s nullglob
+          for toc in "${ADDON_SOURCE}/${ADDON_NAME}.toc" "${ADDON_SOURCE}/${ADDON_NAME}"_*.toc; do
+            [[ -f "$toc" ]] || continue
+            iface="$(grep -iE '^## Interface:' "$toc" | grep -oE '[0-9]+' | head -1)"
+            if [[ -z "$iface" ]]; then
+              echo "Could not read '## Interface:' from $toc" >&2
+              exit 1
+            fi
+            version_string="$((10#$iface / 10000)).$((10#$iface / 100 % 100)).$((10#$iface % 100))"
+            id="$(jq --arg v "$version_string" \
+              'map(select(.name == $v)) | .[0].id // empty' <<<"$versions_json")"
+            if [[ -z "$id" ]]; then
+              echo "No CurseForge game version matches '$version_string' (from $(basename "$toc")). Available versions:" >&2
+              jq -r '.[].name' <<<"$versions_json" | sort -uV >&2
+              exit 1
+            fi
+            echo "$(basename "$toc"): interface $iface -> $version_string -> id $id"
+            ids+=("$id")
+          done
 
-          if [[ -z "$game_version_id" ]]; then
-            echo "No CurseForge game version matches '$version_string'. Available 1.x versions:" >&2
-            jq -r '.[] | select(.name | startswith("1.")) | .name' <<<"$versions_json" | sort -u >&2
+          if [[ ${#ids[@]} -eq 0 ]]; then
+            echo "No TOC files found under ${ADDON_SOURCE}." >&2
             exit 1
           fi
-          echo "Resolved CurseForge game version id: $game_version_id"
+
+          game_versions="$(printf '%s\n' "${ids[@]}" | sort -un | jq -s '.')"
 
           jq -n \
             --rawfile changelog "$RUNNER_TEMP/CHANGELOG.md" \
             --arg displayName "${{ steps.release.outputs.tag }}" \
             --arg releaseType "${{ steps.release.outputs.release_type }}" \
-            --argjson gameVersions "[$game_version_id]" \
+            --argjson gameVersions "$game_versions" \
             '{
               changelog: $changelog,
               changelogType: "markdown",
