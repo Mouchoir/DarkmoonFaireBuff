@@ -8,7 +8,7 @@ read_globals = {
     "CreateFrame", "UIParent", "GameTooltip",
     "Settings", "C_Timer", "C_Calendar", "C_DateAndTime", "C_GossipInfo", "C_Spell",
     "GetSpellInfo", "UnitAura", "UnitGUID", "UnitClass", "UnitLevel",
-    "GetLocale", "GetNumTalentTabs", "GetTalentTabInfo",
+    "GetLocale", "GetNumTalentTabs", "GetTalentTabInfo", "GetSpecialization", "GetSpecializationInfo",
     "DEFAULT_CHAT_FRAME", "CloseGossip", "GetTime",
     "strsplit", "strtrim", "time", "date",
 }

@@ -475,21 +475,43 @@ local REASON_BY_BUFF = {
     AGI = "RECOMMEND_REASON_AGI",
 }
 
+-- Determine the player's primary spec across client flavours.
+-- Returns: index, name, weight (weight >= 10 means a real spec is chosen).
 local function GetPrimaryTalentTab()
-    if not GetNumTalentTabs or not GetTalentTabInfo then return nil, nil, 0 end
-
-    local bestIndex, bestName, bestPoints = nil, nil, 0
-    for i = 1, GetNumTalentTabs() do
-        local name, _, pointsSpent = GetTalentTabInfo(i)
-        pointsSpent = tonumber(pointsSpent) or 0
-        if pointsSpent > bestPoints then
-            bestIndex = i
-            bestName = name
-            bestPoints = pointsSpent
+    -- Mists of Pandaria and later replaced the talent-tree/points API with the
+    -- specialization API. On those clients GetNumTalentTabs() still EXISTS but
+    -- throws ("API unsupported"), so prefer the spec API and guard every call.
+    if GetSpecialization then
+        local ok, specIndex = pcall(GetSpecialization)
+        if ok and specIndex then
+            local specName
+            if GetSpecializationInfo then
+                local infoOk, _, name = pcall(GetSpecializationInfo, specIndex)
+                if infoOk then specName = name end
+            end
+            return specIndex, specName, 999
         end
     end
 
-    return bestIndex, bestName, bestPoints
+    -- Classic (Vanilla / Wrath-era) talent-tree API.
+    if GetNumTalentTabs and GetTalentTabInfo then
+        local ok, count = pcall(GetNumTalentTabs)
+        if ok and count then
+            local bestIndex, bestName, bestPoints = nil, nil, 0
+            for i = 1, count do
+                local name, _, pointsSpent = GetTalentTabInfo(i)
+                pointsSpent = tonumber(pointsSpent) or 0
+                if pointsSpent > bestPoints then
+                    bestIndex = i
+                    bestName = name
+                    bestPoints = pointsSpent
+                end
+            end
+            return bestIndex, bestName, bestPoints
+        end
+    end
+
+    return nil, nil, 0
 end
 
 local function BuildRecommendation(primary, alternatives)
