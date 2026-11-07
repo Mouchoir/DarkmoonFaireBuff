@@ -5,6 +5,7 @@
 ## Notes-frFR: Automatise les dialogues de buff de Sayge a la foire de Sombrelune.
 ## Author: Mouchoir
 ## Version: 1.0.2
+## X-Wago-ID: j6jAQONR
 ## SavedVariablesPerCharacter: DFBCharSettings
 
 DarkmoonFaireBuff.lua
